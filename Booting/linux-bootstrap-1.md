@@ -1,29 +1,30 @@
-Kernel booting process. Part 1.
+커널 부팅 과정. Part 1
 ================================================================================
 
-From the bootloader to the kernel
+부트로더에서 커널까지
 --------------------------------------------------------------------------------
 
-If you have been reading my previous [blog posts](https://0xax.github.io/categories/assembler/), then you can see that, for some time now, I have been starting to get involved with low-level programming. I have written some posts about assembly programming for `x86_64` Linux and, at the same time, I have also started to dive into the Linux kernel source code.
+만약 당신이 제 이전 [블로그 게시물](https://0xax.github.io/categories/assembler/)들을 계속 읽어왔다면, 제가 꽤 오랜 시간동안 로우레벨 프로그래밍을 해왔다는 것을 알 수 있었을 것입니다. 저는 x86_64 리눅스에 대한 어셈블리 프로그래밍에 대한 여러 글들을 작성해왔고, 그와 동시에 리눅스 커널 소스 코드에 빠져들게 되었습니다.
 
-I have a great interest in understanding how low-level things work, how programs run on my computer, how they are located in memory, how the kernel manages processes and memory, how the network stack works at a low level, and many many other things. So, I have decided to write yet another series of posts about the Linux kernel for the **x86_64** architecture.
+저는 로우레벨이 어떻게 내부적으로 동작하는지, 프로그램이 컴퓨터에서 어떻게 실행이 되는지, 어떻게 그것들이 메모리에 적재되는지, 커널이 프로세스와 메모리 관리를 어떻게 하는지, 네트워크 스택이 로우레벨에서 어떻게 동작하는지, 그리고 이외의 많은 것들을 이해하는데 큰 관심을 가지고 있습니다. 그래서 저는 **x86_64** 아키텍쳐 리눅스 커널에 대해 게시물 시리즈를 작성하기로 결정하였습니다.
 
-Note that I'm not a professional kernel hacker and I don't write code for the kernel at work. It's just a hobby. I just like low-level stuff, and it is interesting for me to see how these things work. So if you notice anything confusing, or if you have any questions/remarks, ping me on Twitter [0xAX](https://twitter.com/0xAX), drop me an [email](anotherworldofworld@gmail.com) or just create an [issue](https://github.com/0xAX/linux-insides/issues/new). I appreciate it.
+제가 전문적인 커널 해커가 아니고 일하면서 커널 코드를 작성하지 않는다는 것을 알아두세요. 이건 취미일 뿐이고, 저는 단지 로우레벨과 이것들이 어떻게 동작하는지 흥미가 있기 때문에 하는 것입니다. 만약에 글을 읽다가 헷갈리는 것이 생기거나 궁금한 사항 등이 생기면 트위터에서 [0xAX](https://twitter.com/0xAX)를 핑하거나 [이메일](anotherworldofworld@gmail.com)을 보내거나 아니면 [이슈]를 만들어주세요. 감사히 받겠습니다.
 
-All posts will also be accessible at [github repo](https://github.com/0xAX/linux-insides) and, if you find something wrong with my English or the post content, feel free to send a pull request.
+모든 게시물들은 [github repo](https://github.com/0xAX/linux-insides)에서 볼 수 있습니다. 그리고 제 영어 실력이나 게시물 내용에서 이상한 것을 찾으면 언제든 풀 리퀘스트를 보내주세요.
 
-*Note that this isn't official documentation, just learning and sharing knowledge.*
+*이 게시물은 공식 문서가 아니며, 단지 지식을 배우고 공유하기 위한 것임을 알아두세요.*
 
-**Required knowledge**
+**요구 지식**
 
-* Understanding C code
-* Understanding assembly code (AT&T syntax)
+* C언어를 이해할 수 있는 능력
+* 어셈블리어(AT&T 문법)를 이해할 수 있는 능력
 
-Anyway, if you are just starting to learn such tools, I will try to explain some parts during this and the following posts. Alright, this is the end of the simple introduction, and now we can start to dive into the Linux kernel and low-level stuff.
+어쨌든, 이런 도구를 처음으로 배우기 시작했으면, 그런 분들을 위해 앞으로의 게시물들에서 제가 여러 파트를 설명할 수 있도록 노력할 것입니다.
+자, 이제 간단한 소개가 끝났습니다. 이제 리눅스 커널과 로우레벨에 뛰어들 수 있겠군요.
 
-I've started writing this book at the time of the `3.18` Linux kernel, and many things might have changed since that time. If there are changes, I will update the posts accordingly.
+제가 리눅스 커널 버전 3.18 때부터 이 게시물을 작성하기 시작했는데, 그 이후로 많은 부분들이 바뀌었습니다. 변경 사항이 생기면 그에 따라 게시물들을 업데이트하겠습니다.
 
-The Magical Power Button, What happens next?
+마법의 컴퓨터 전원 버튼을 누르면 무슨 일이 벌어지나요?
 --------------------------------------------------------------------------------
 
 Although this is a series of posts about the Linux kernel, we will not be starting directly from the kernel code - at least not, in this paragraph. As soon as you press the magical power button on your laptop or desktop computer, it starts working. The motherboard sends a signal to the [power supply](https://en.wikipedia.org/wiki/Power_supply) device. After receiving the signal, the power supply provides the proper amount of electricity to the computer. Once the motherboard receives the [power good signal](https://en.wikipedia.org/wiki/Power_good_signal), it tries to start the CPU. The CPU resets all leftover data in its registers and sets up predefined values for each of them.
