@@ -1,19 +1,19 @@
-System calls in the Linux kernel. Part 1.
+리눅스 커널에서의 시스템 콜 Part 1.
 ================================================================================
 
-Introduction
+인트로
 --------------------------------------------------------------------------------
 
-This post opens up a new chapter in [linux-insides](https://0xax.gitbooks.io/linux-insides/content/) book, and as you may understand from the title, this chapter will be devoted to the [System call](https://en.wikipedia.org/wiki/System_call) concept in the Linux kernel. The choice of topic for this chapter is not accidental. In the previous [chapter](https://0xax.gitbooks.io/linux-insides/content/Interrupts/index.html) we saw interrupts and interrupt handling. The concept of system calls is very similar to that of interrupts. This is because the most common way to implement system calls is as software interrupts. We will see many different aspects that are related to the system call concept. For example, we will learn what's happening when a system call occurs from userspace. We will see an implementation of a couple system call handlers in the Linux kernel, [VDSO](https://en.wikipedia.org/wiki/VDSO) and [vsyscall](https://lwn.net/Articles/446528/) concepts and many many more.
+지금부터 [linux-insides](https://0xax.gitbooks.io/linux-insides/content/) 책에서의 새로운 챕터가 시작됩니다. 제목에서 알 수 있듯이 이 챕터에서는 리눅스 커널의 [시스템 콜](https://en.wikipedia.org/wiki/System_call) 개념에 대해 설명할 것입니다. 이 장의 주제 선택은 우발적인 것이 아닙니다. 이전 [챕터](https://0xax.gitbooks.io/linux-insides/content/Interrupts/index.html)에서는 인터럽트와 인터럽트 핸들링에 대해 배웠습니다. 시스템 콜의 개념은 앞의 인터럽트 개념과 매우 유사합니다. 이는 시스템 콜을 구현하는 가장 일반적인 방법이 소프트웨어 인터럽트를 이용하는 것이기 때문입니다. 이 챕터에서는 시스템 콜 개념과 관련된 여러 측면을 공부할 것입니다. 예를 들어, 유저 스페이스(사용자 공간userspace)에서 시스템 호출이 발생할 때 어떤 일이 일어나는지 배울겁니다. 추가로, 리눅스 커널에서의 시스템 콜 핸들러, 예로 [VDSO](https://en.wikipedia.org/wiki/VDSO) 및 [vsyscall](https://lwn.net/Articles/446528/) 개념과 그 밖의 여러 가지 핸들러의 구현을 볼 것입니다.
 
-Before we dive into Linux system call implementation, it is good to know some theory about system calls. Let's do it in the following paragraph.
+리눅스 시스템 콜 구현을 공부하기 전에 시스템 콜에 대한 몇 가지 이론을 알고있는 것이 좋습니다. 다음 단락에서 해보죠.
 
-System call. What is it?
+시스템 콜이 뭐예요?
 --------------------------------------------------------------------------------
 
-A system call is just a userspace request of a kernel service. Yes, the operating system kernel provides many services. When your program wants to write to or read from a file, start to listen for connections on a [socket](https://en.wikipedia.org/wiki/Network_socket), delete or create directory, or even to finish its work, a program uses a system call. In other words, a system call is just a [C](https://en.wikipedia.org/wiki/C_%28programming_language%29) kernel space function that user space programs call to handle some request.
+시스템 콜은 커널의 서비스를 제공받기 위한 유저 스페이스의 요청일 뿐입니다. 맞습니다. 운영 체제 커널은 많은 서비스를 제공합니다. 프로그램이 파일에 뭔가를 쓰거나 읽으려 할 때, [소켓](https://en.wikipedia.org/wiki/Network_socket) 연결을 위해 listen을 시작할 때, 디렉토리를 생성하거나 삭제할 때, 심지어는 해당 작업을 끝낼 때 프로그램이 시스템 호출을 사용합니다. 다시 말하면, 시스템 콜은 유저 스페이스의 프로그램이 일부 요청들을 처리하기 위해 호출하는 커널 스페이스에 작성되어 있는 [C언어](https://en.wikipedia.org/wiki/C_%28programming_language%29) 함수일 뿐입니다.
 
-The Linux kernel provides a set of these functions and each architecture provides its own set. For example: the [x86_64](https://en.wikipedia.org/wiki/X86-64) provides [322](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl) system calls and the [x86](https://en.wikipedia.org/wiki/X86) provides [358](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_32.tbl) different system calls. Ok, a system call is just a function. Let's look on a simple `Hello world` example that's written in the assembly programming language:
+리눅스 커널은 이러한 함수들의 세트를 제공하며 각 아키텍처에서 자체적인 세트를 제공합니다. 예를 들어, [x86_64](https://en.wikipedia.org/wiki/X86-64) 아키텍처는 [322](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl) 개의 시스템 콜을 제공하고 [x86](https://en.wikipedia.org/wiki/X86) 아키텍처는 [358](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_32.tbl)개의 다른 시스템 콜을 제공합니다. 다시 말하지만, 시스템 호출은 단지 함수일 뿐입니다. 어셈블리 프로그래밍 언어로 작성된 간단한 Hello world 예제를 살펴보시죠:
 
 ```assembly
 .data
@@ -37,26 +37,26 @@ _start:
     syscall
 ```
 
-We can compile the above with the following commands:
+위 명령을 다음과 같이 컴파일 할 수 있습니다:
 
 ```
 $ gcc -c test.S
 $ ld -o test test.o
 ```
 
-and run it as follows:
+그리고 다음과 같이 실행할 수 있습니다:
 
 ```
 ./test
 Hello, world!
 ```
 
-Ok, what do we see here? This simple code represents `Hello world` assembly program for the Linux `x86_64` architecture. We can see two sections here:
+좋습니다. 우리가 여기서 무엇을 알 수 있을까요? 이 간단한 코드는 리눅스 `x86_64` 아키텍처용 `Hello World` 어셈블리 프로그램에 해당합니다. 우리는 여기서 두 개의 섹션을 확인할 수 있습니다:
 
 * `.data`
 * `.text`
 
-The first section - `.data` stores initialized data of our program (`Hello world` string and its length in our case). The second section - `.text` contains the code of our program. We can split the code of our program into two parts: first part will be before the first `syscall` instruction and the second part will be between first and second `syscall` instructions. First of all what does the `syscall` instruction do in our code and generally? As we can read in the [64-ia-32-architectures-software-developer-vol-2b-manual](http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html):
+첫 번째 섹션 - `.data` 에는 프로그램의 초기 상태 데이터가 저장되어 있습니다.(`Hello world` 문자열과 그 길이) 두 번째 섹션 - `.text` 에는 프로그램의 실제 코드가 저장되어 있습니다. 프로그램의 코드를 두 파트로 나누어보죠: 첫 번째 파트는 처음 `syscall` 명령어의 앞 부분, 두 번째 파트는 첫 번째와 두 번째 `syscall` 명령어 사이로 나누어봅시다. 일단 첫번째로, `syscall` 인스트럭션은 일반적으로, 그리고 우리 코드에서 무엇을 합니까? 그건 [64-ia-32-architectures-software-developer-vol-2b-manual](http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html)에서 읽을 수 있습니다:
 
 ```
 SYSCALL invokes an OS system-call handler at privilege level 0. It does so by
