@@ -45,7 +45,16 @@ https://groups.google.com/forum/#!forum/kernelhacking
   * [Spanish](https://github.com/leolas95/linux-insides)
   * [Turkish](https://github.com/ayyucedemirbas/linux-insides_Turkish)
 
-기여하기 
+기여하기(한국어 번역)
+--------------
+
+새로운 이슈와 풀 리퀘스트는 언제나 환영합니다!!
+
+New issues and full requests are always welcome!
+
+현재 번역중인 세션 : [System Call](https://github.com/junsooo/linux-insides-ko/tree/master/SysCall)
+
+기여하기
 --------------
 
 문제를 발견하면 언제든 이슈를 생성하거나 풀 리퀘스트를 보내주세요.
@@ -53,6 +62,7 @@ https://groups.google.com/forum/#!forum/kernelhacking
 **변경 사항을 적용하기 전에 [CONTRIBUTING.md](https://github.com/0xAX/linux-insides/blob/master/CONTRIBUTING.md)를 꼭 읽어주세요.**
 
 ![image](http://oi58.tinypic.com/23upobq.jpg)
+
 
 저자
 ---------------
