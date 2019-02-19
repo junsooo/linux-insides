@@ -56,7 +56,7 @@ Hello, world!
 * `.data`
 * `.text`
 
-첫 번째 섹션 - `.data` 에는 프로그램의 초기 상태 데이터가 저장되어 있습니다.(`Hello world` 문자열과 그 길이) 두 번째 섹션 - `.text` 에는 프로그램의 실제 코드가 저장되어 있습니다. 프로그램의 코드를 두 파트로 나누어보죠: 첫 번째 파트는 처음 `syscall` 명령어의 앞 부분, 두 번째 파트는 첫 번째와 두 번째 `syscall` 명령어 사이로 나누어봅시다. 일단 첫번째로, `syscall` 인스트럭션은 일반적으로, 그리고 우리 코드에서 무엇을 합니까? 그건 [64-ia-32-architectures-software-developer-vol-2b-manual](http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html)에서 읽을 수 있습니다:
+첫 번째 섹션 - `.data` 에는 프로그램의 초기 상태 데이터가 저장되어 있습니다.(`Hello world` 문자열과 그 길이) 두 번째 섹션 - `.text` 에는 프로그램의 실제 코드가 저장되어 있습니다. 프로그램의 코드를 두 파트로 나누어보죠: 첫 번째 파트는 처음 `syscall` 명령어의 앞 부분, 두 번째 파트는 첫 번째와 두 번째 `syscall` 명령어 사이로 나누어봅시다. 일단 첫번째로, `syscall` 인스트럭션은 일반적으로 코드에서 어떤 일을 할까요? 그건 [64-ia-32-architectures-software-developer-vol-2b-manual](http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html)에서 읽을 수 있습니다:
 
 ```
 SYSCALL invokes an OS system-call handler at privilege level 0. It does so by
@@ -76,19 +76,20 @@ by those selector values correspond to the fixed values loaded into the descript
 caches; the SYSCALL instruction does not ensure this correspondence.
 ```
 
-To summarize, the `syscall` instruction jumps to the address stored in the `MSR_LSTAR` [Model specific register](https://en.wikipedia.org/wiki/Model-specific_register) (Long system target address register). The kernel is responsible for providing its own custom function for handling syscalls as well as writing the address of this handler function to the `MSR_LSTAR` register upon system startup.
-The custom function is `entry_SYSCALL_64`, which is defined in [arch/x86/entry/entry_64.S](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/entry_64.S#L98). The address of this syscall handling function is written to the `MSR_LSTAR` register during startup in [arch/x86/kernel/cpu/common.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/kernel/cpu/common.c#L1335).
+요약하면, `syscall` 인스트럭션은 `MSR_LSTAR` [Model specific register](https://en.wikipedia.org/wiki/Model-specific_register)(Long system target address register)에 저장된 주소로 점프하는 역할을 합니다. 커널은 시스템이 시작할 때 `MSR_LSTAR` 레지스터에 시스템 콜 핸들러 함수의 주소를 쓰는 것 뿐만 아니라, 시스템 콜 핸들러 내부에서 실제로 각 시스템 콜을 핸들링 하기 위한 커스텀 함수를 제공해야 합니다.
+여기서 커스텀 함수란 [arch/x86/entry/entry_64.S](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/entry_64.S#L98)에 정의된 `entry_SYSCALL_64`를 뜻합니다. 이 시스템 핸들링 함수의 주소는 커널이 시작하는 도중 [arch/x86/kernel/cpu/common.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/kernel/cpu/common.c#L1335)에서 `MSR_LSTAR` 레지스터에 쓰여집니다.
+
 ```C
 wrmsrl(MSR_LSTAR, entry_SYSCALL_64);
 ```
 
-So, the `syscall` instruction invokes a handler of a given system call. But how does it know which handler to call? Actually it gets this information from the general purpose [registers](https://en.wikipedia.org/wiki/Processor_register). As you can see in the system call [table](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl), each system call has a unique number. In our example the first system call is `write`, which writes data to the given file. Let's look in the system call table and try to find the `write` system call. As we can see, the [write](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L10) system call has number `1`. We pass the number of this system call through the `rax` register in our example. The next general purpose registers: `%rdi`, `%rsi`, and `%rdx` take the three parameters of the `write` syscall. In our case, they are:
+좋아요. `syscall` 인스트럭션이 주어진 시스템 콜의 핸들러를 호출해요. 그런데 실제로 어떤 핸들러를 호출해야 하는지 어떻게 알 수 있을까요? 사실 해당 정보는 범용 [레지스터](https://en.wikipedia.org/wiki/Processor_register)에서 가져옵니다. [시스템 콜 테이블](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl)에서 볼 수 있듯이, 각 시스템 콜은 고유한 번호를 가지고 있습니다. 우리 예시에서 첫번째 시스템 콜은 `write` 시스템 콜이고, 주어진 파일에 데이터를 쓰는 역할을 합니다. 한 번 시스템 콜 테이블에서 `write` 시스템 콜의 위치를 찾아보세요. [write](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L10) 시스템 콜이 숫자 `1`에 해당되는 것을 확인하셨을 겁니다. 우리는 이 숫자를 `rax` 레지스터를 통해 넘길 것입니다. 그 다음으로 `write` 시스템 콜을 수행하기 위해 필요한 세 개의 인자(parameter)를 넘기기 위해서는 각각 `%rdi`, `%rsi`, `%rdx` 범용 레지스터를 이용할겁니다. 다음을 확인해보세요:
 
-* [File descriptor](https://en.wikipedia.org/wiki/File_descriptor) (`1` is [stdout](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_.28stdout.29) in our case)
-* Pointer to our string
-* Size of data
+* `%rdi` : [파일 디스크립터](https://en.wikipedia.org/wiki/File_descriptor) (`1` 은 [stdout](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_.28stdout.29) 을 의미함)
+* `%rsi` : string에 대한 포인터
+* `%rdx` : 데이터의 크기
 
-Yes, you heard right. Parameters for a system call. As I already wrote above, a system call is a just `C` function in the kernel space. In our case first system call is write. This system call defined in the [fs/read_write.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/fs/read_write.c) source code file and looks like:
+흠.. 당신이 제대로 본 게 맞아요. 위 내용은 시스템 콜에 필요한 인자에 대해 설명하고 있어요. 제가 위에서 말했던 것처럼, 시스템 콜은 단지 커널 스페이스의 `C` 함수일 뿐이예요. 위의 예제에서는 첫번째 시스템 콜이 `write` 인 것입니다. 이 시스템 콜은 [fs/read_write.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/fs/read_write.c)소스 코드에 정의가 되어있어요. 그리고 이렇게 생겼죠:
 
 ```C
 SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
@@ -100,19 +101,19 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 }
 ```
 
-Or in other words:
+다시 말하면 이렇게 생겼죠:
 
 ```C
 ssize_t write(int fd, const void *buf, size_t nbytes);
 ```
 
-Don't worry about the `SYSCALL_DEFINE3` macro for now, we'll come back to it.
+지금은 `SYSCALL_DEFINE3` 매크로를 보고 너무 걱정하지 마세요. 나중에 다시 돌아올 겁니다.
 
-The second part of our example is the same, but we call another system call. In this case we call the [exit](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L69) system call. This system call gets only one parameter:
+위 예시의 두번째 파트는 거의 똑같지만, 사실 다른 시스템 콜을 부릅니다. 이 경우에는 [exit](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L69) 시스템 콜을 부릅니다. 이 시스템 콜은 딱 하나의 인자만 받습니다:
 
-* Return value
+* `%rdi`: 리턴값(Return value)
 
-and handles the way our program exits. We can pass the program name of our program to the [strace](https://en.wikipedia.org/wiki/Strace) util and we will see our system calls:
+그리고 프로그램이 종료되는 방식을 처리하죠. 한 번 위의 예시 프로그램을 [strace](https://en.wikipedia.org/wiki/Strace) 유틸리티로 실행해보면 실제로 시스템 콜이 동작하는 것을 확인할 수 있습니다:
 
 ```
 $ strace test
@@ -124,7 +125,7 @@ _exit(0)                                = ?
 +++ exited with 0 +++
 ```
 
-In the first line of the `strace` output, we can see the [execve](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L68) system call that executes our program, and the second and third are system calls that we have used in our program: `write` and `exit`. Note that we pass the parameter through the general purpose registers in our example. The order of the registers is not accidental. The order of the registers is defined by the following agreement - [x86-64 calling conventions](https://en.wikipedia.org/wiki/X86_calling_conventions#x86-64_calling_conventions). This, and the other agreement for the `x86_64` architecture are explained in the special document - [System V Application Binary Interface. PDF](https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-r252.pdf). In a general way, argument(s) of a function are placed either in registers or pushed on the stack. The right order is:
+`strace` output의 첫번째 줄에서, [execve](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L68) 시스템 콜이 우리의 프로그램을 실행하는 것을 확인할 수 있습니다. 두 번째와 세 번째는 우리가 프로그램에서 사용했던 `write` 와 `exit` 시스템 콜입니다. 위 예시에서 범용 레지스터를 통해 매개 변수를 전달한다는 것을 알아두세요. 레지스터 순서는 우연적인 것이 아니라 [x86-64 콜링 컨벤션](https://en.wikipedia.org/wiki/X86_calling_conventions#x86-64_calling_conventions)에 의해 정의됩니다. 이 컨벤션과 `x86_64` 아키텍쳐의 다른 컨벤션에 관련해서는 바로 뒤의 특별한 문서에서 다루고 있습니다. - [System V Application Binary Interface. PDF](https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-r252.pdf). 일반적으로, 함수의 인자는 레지스터에 저장이 되거나 스택에 push 됩니다. 함수의 처음 6개의 매개 변수에 대해 저장되는 순서는 다음과 같습니다:
 
 * `rdi`
 * `rsi`
@@ -133,11 +134,11 @@ In the first line of the `strace` output, we can see the [execve](https://github
 * `r8`
 * `r9`
 
-for the first six parameters of a function. If a function has more than six arguments, the remaining parameters will be placed on the stack.
+만약 함수가 6개 이상의 인자를 가진다면 남은 인자들은 스택에 저장이 됩니다.
 
-We do not use system calls in our code directly, but our program uses them when we want to print something, check access to a file or just write or read something to it.
+우리는 코드에서 직접 시스템 콜을 사용하지 않습니다. 프로그램이 뭔가를 출력하거나 파일에 접근해 읽기, 쓰기를 원할 때 내부적으로 시스템 콜을 사용합니다.
 
-For example:
+예를 들어보죠:
 
 ```C
 #include <stdio.h>
@@ -156,7 +157,7 @@ int main(int argc, char **argv)
 }
 ```
 
-There are no `fopen`, `fgets`, `printf`, and `fclose` system calls in the Linux kernel, but `open`, `read`, `write`, and `close` instead. I think you know that `fopen`, `fgets`, `printf`, and `fclose` are defined in the `C` [standard library](https://en.wikipedia.org/wiki/GNU_C_Library). Actually, these functions are just wrappers for the system calls. We do not call system calls directly in our code, but instead use these [wrapper](https://en.wikipedia.org/wiki/Wrapper_function) functions from the standard library. The main reason of this is simple: a system call must be performed quickly, very quickly. As a system call must be quick, it must be small. The standard library takes responsibility to perform system calls with the correct parameters and makes different checks before it will call the given system call. Let's compile our program with the following command:
+리눅스 커널에는 `fopen`, `fgets`, `printf`, `fclose` 시스템 콜은 없지만, `open`, `read`, `write`, `close` 시스템 콜은 있습니다. 저는 아마 여러분이 `fopen`, `fgets`, `printf`, `fclose` 함수가 `C` [표준 라이브러리](https://en.wikipedia.org/wiki/GNU_C_Library)에 정의되어 있다는 것을 알 것이라고 생각합니다. 사실 이 함수들은 시스템 콜을 위한 wrapper일 뿐입니다. 다시 말하지만, 우리는 코드에서 시스템 콜을 직접 호출하지 않고 표준 라이브러리에 정의된 [wrapper](https://en.wikipedia.org/wiki/Wrapper_function) 함수를 사용합니다. 사실 The main reason of this is simple: a system call must be performed quickly, very quickly. As a system call must be quick, it must be small. The standard library takes responsibility to perform system calls with the correct parameters and makes different checks before it will call the given system call. Let's compile our program with the following command:
 
 ```
 $ gcc test.c -o test
