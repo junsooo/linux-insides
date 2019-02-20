@@ -157,13 +157,13 @@ int main(int argc, char **argv)
 }
 ```
 
-리눅스 커널에는 `fopen`, `fgets`, `printf`, `fclose` 시스템 콜은 없지만, `open`, `read`, `write`, `close` 시스템 콜은 있습니다. 저는 아마 여러분이 `fopen`, `fgets`, `printf`, `fclose` 함수가 `C` [표준 라이브러리](https://en.wikipedia.org/wiki/GNU_C_Library)에 정의되어 있다는 것을 알 것이라고 생각합니다. 사실 이 함수들은 시스템 콜을 위한 wrapper일 뿐입니다. 다시 말하지만, 우리는 코드에서 시스템 콜을 직접 호출하지 않고 표준 라이브러리에 정의된 [wrapper](https://en.wikipedia.org/wiki/Wrapper_function) 함수를 사용합니다. 사실 The main reason of this is simple: a system call must be performed quickly, very quickly. As a system call must be quick, it must be small. The standard library takes responsibility to perform system calls with the correct parameters and makes different checks before it will call the given system call. Let's compile our program with the following command:
+리눅스 커널에는 `fopen`, `fgets`, `printf`, `fclose` 시스템 콜은 없지만, `open`, `read`, `write`, `close` 시스템 콜은 있습니다. 저는 아마 여러분이 `fopen`, `fgets`, `printf`, `fclose` 함수가 `C` [표준 라이브러리](https://en.wikipedia.org/wiki/GNU_C_Library)에 정의되어 있다는 것을 알 것이라고 생각합니다. 사실 이 함수들은 시스템 콜을 위한 wrapper일 뿐입니다. 다시 말하지만, 우리는 코드에서 시스템 콜을 직접 호출하지 않고 표준 라이브러리에 정의된 [wrapper](https://en.wikipedia.org/wiki/Wrapper_function) 함수를 사용합니다. 사실 그 주된 이유는 간단합니다. 시스템 콜이 아주 신속하게 실행되어야 하기 때문입니다. 빨리 실행되어야 하기 때문에 그 크기는 작아야 합니다. 표준 라이브러리는 시스템 콜을 수행할 때 알맞은 인자를 넣어서 수행하고, 또 시스템 콜을 실제로 수행하기 전에 관련된 여러 검사를 진행합니다. 위의 예시 프로그램을 다음과 같이 컴파일 해봅시다. 
 
 ```
 $ gcc test.c -o test
 ```
 
-and examine it with the [ltrace](https://en.wikipedia.org/wiki/Ltrace) util:
+그리고 [ltrace](https://en.wikipedia.org/wiki/Ltrace) 유틸리티를 이용해 분석해봅시다:
 
 ```
 $ ltrace ./test
@@ -177,13 +177,13 @@ fclose(0x602010)                                                   = 0
 +++ exited (status 0) +++
 ```
 
-The `ltrace` util displays a set of userspace calls of a program. The `fopen` function opens the given text file, the `fgets` function reads file content to the `buf` buffer, the `puts` function prints the buffer to `stdout`, and the `fclose` function closes the file given by the file descriptor. And as I already wrote, all of these functions call an appropriate system call. For example, `puts` calls the `write` system call inside, we can see it if we will add `-S` option to the `ltrace` program:
+`ltrace` 유틸리티는 프로그램의 유저 스페이스에서의 함수 call 내용들을 알려줍니다. `fopen` 함수는 주어진 텍스트 파일을 열고, `fgets` 함수는 파일의 내용을 읽어서 `buf` 버퍼로 읽어들입니다. 또 `puts` 함수는 버퍼의 내용을 `stdout`에 출력하고, `fclose` 함수는 파일 디스크립터를 통해 주어진 파일을 닫습니다. 그리고 이미 말했던 것처럼, 이 함수들은 모두 적절한 시스템 콜을 부릅니다. 예를 들어, `puts` 함수는 `write` 시스템 콜을 내부에서 부릅니다. `ltrace` 유틸리티에 `-S` 옵션을 추가하면 해당 내용을 볼 수 있습니다:
 
 ```
 write@SYS(1, "Hello World!\n\n", 14) = 14
 ```
 
-Yes, system calls are ubiquitous. Each program needs to open/write/read files and network connections, allocate memory, and many other things that can be provided only by the kernel. The [proc](https://en.wikipedia.org/wiki/Procfs) file system contains special files in a format: `/proc/${pid}/syscall` that exposes the system call number and argument registers for the system call currently being executed by the process. For example, pid 1 is [systemd](https://en.wikipedia.org/wiki/Systemd) for me:
+맞아요. 시스템콜은 어디에나 있습니다. 각 프로그램은 파일을 열고 읽고 쓰거나 네트워크 연결을 하거나, 메모리를 할당받거나 수많은 다른 일들을 할 수 있어야 합니다. 그리고 이런 것들은 오직 커널만이 제공해줄 수 있습니다. [Proc](https://en.wikipedia.org/wiki/Procfs) 파일 시스템은 `/proc/${pid}/syscall` 형식의 특별한 파일들을 포함하고 있습니다. 이 파일들은 시스템 콜 넘버와, 프로세스에서 현재까지 실행된 시스템 콜의 인자 레지스터 값들을 포함합니다. 예를 들어 pid 1을 가지는 [systemd](https://en.wikipedia.org/wiki/Systemd) 프로세스를 확인해보시죠:
 
 ```
 $ sudo cat /proc/1/comm
@@ -193,7 +193,7 @@ $ sudo cat /proc/1/syscall
 232 0x4 0x7ffdf82e11b0 0x1f 0xffffffff 0x100 0x7ffdf82e11bf 0x7ffdf82e11a0 0x7f9114681193
 ```
 
-the system call with number - `232` which is [epoll_wait](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L241) system call that waits for an I/O event on an [epoll](https://en.wikipedia.org/wiki/Epoll) file descriptor. Or for example `emacs` editor where I'm writing this part:
+넘버 `232`를 가지는 시스템 콜 [epoll_wait](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L241)는 [epoll](https://en.wikipedia.org/wiki/Epoll) 파일 디스크립터에서 I/O 이벤트를 기다리는 역할을 합니다. 추가로 이 부분을 작성하는데 사용하고 있는 `emacs` 에디터를 예시로 들어보죠:
 
 ```
 $ ps ax | grep emacs
@@ -206,11 +206,11 @@ $ sudo cat /proc/2093/syscall
 270 0xf 0x7fff068a5a90 0x7fff068a5b10 0x0 0x7fff068a59c0 0x7fff068a59d0 0x7fff068a59b0 0x7f777dd8813c
 ```
 
-the system call with the number `270` which is [sys_pselect6](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L279) system call that allows `emacs` to monitor multiple file descriptors.
+넘버 `270`를 가지는 시스템 콜 [sys_pselect6](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/entry/syscalls/syscall_64.tbl#L279)은 `emacs`가 여러 파일 디스크립터들을 모니터링 할 수 있도록 허가해줍니다. 
 
-Now we know a little about system call, what is it and why we need in it. So let's look at the `write` system call that our program used.
+이제 우리는 시스템 콜이 무엇이고, 왜 우리가 필요로 하는지에 대해 조금 알게 되었습니다. 이제 프로그램에서 사용된 `write` 시스템 콜을 좀 더 자세히 살펴보죠.
 
-Implementation of write system call
+Write 시스템 콜 구현하기
 --------------------------------------------------------------------------------
 
 Let's look at the implementation of this system call directly in the source code of the Linux kernel. As we already know, the `write` system call is defined in the [fs/read_write.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/fs/read_write.c) source code file and looks like this:
