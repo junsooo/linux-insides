@@ -335,7 +335,7 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 * `count` - 버퍼에 작성할 데이터의 길이;
 
 그리고 주어진 장치나 파일으로부터 데이터를 제공받아 유저가 선언한 버퍼에 데이터를 작성합니다. 두번째 인자 `buf`는 `__user` 속성으로 정의됩니다. 해당 속성을 이용하는 주된 이유는 [sparse](https://en.wikipedia.org/wiki/Sparse) 유틸리티를 이용해 리눅스 커널 코드를 체크하기 위함입니다. 이것은 [include/linux/compiler.h](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/include/linux/compiler.h) 헤더 파일에 정의되어 있으며 리눅스 커널의 `__CHECKER__` 정의에 따라 달라집니다. 해당 정의는 `sys_write` 시스템 콜의 유용한 메타데이터에 관한 모든 정보를 포함하고 있습니다. 
-이 시스템 콜이 어떻게 구현되어 있는지 이해해봅시다. 먼저 함수의 첫번째 줄에서는, `fd` 구조체 타입을 가지는 변수 `f`에 `fdget_pos` 함수의 인자로 `fd` 구조체 타입을 넣은 함수의 리턴 값을 삽입합니다. `fdget_pos` 함수는 같은 [소스](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/fs/read_write.c) 파일에 정의되어 있고 `__to_fd` 함수의 실행 결과를 확장합니다.
+이 시스템 콜이 어떻게 구현되어 있는지 이해해봅시다. 먼저 함수의 첫번째 줄에서는, `fd` 구조체 타입을 가지는 변수 `f`에 `fdget_pos` 함수의 인자로 unsigned int 타입을 가지는 `fd`를 넣고 계산한 함수의 리턴 값을 삽입합니다. `fdget_pos` 함수는 같은 [소스](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/fs/read_write.c) 파일에 정의되어 있고 `__to_fd` 함수의 실행 결과를 확장합니다.
 
 ```C
 static inline struct fd fdget_pos(int fd)
@@ -344,7 +344,7 @@ static inline struct fd fdget_pos(int fd)
 }
 ```
 
-The main purpose of the `fdget_pos` is to convert the given file descriptor which is just a number to the `fd` structure. Through the long chain of function calls, the `fdget_pos` function gets the file descriptor table of the current process, `current->files`, and tries to find a corresponding file descriptor number there. As we got the `fd` structure for the given file descriptor number, we check it and return if it does not exist. We get the current position in the file with the call of the `file_pos_read` function that just returns `f_pos` field of our file:
+`fdget_pos` 함수의 주 목적은, is to convert the given file descriptor which is just a number to the `fd` structure. Through the long chain of function calls, the `fdget_pos` function gets the file descriptor table of the current process, `current->files`, and tries to find a corresponding file descriptor number there. As we got the `fd` structure for the given file descriptor number, we check it and return if it does not exist. We get the current position in the file with the call of the `file_pos_read` function that just returns `f_pos` field of our file:
 
 ```C
 static inline loff_t file_pos_read(struct file *file)
