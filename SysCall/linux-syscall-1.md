@@ -344,7 +344,7 @@ static inline struct fd fdget_pos(int fd)
 }
 ```
 
-`fdget_pos` 함수의 주 목적은, is to convert the given file descriptor which is just a number to the `fd` structure. Through the long chain of function calls, the `fdget_pos` function gets the file descriptor table of the current process, `current->files`, and tries to find a corresponding file descriptor number there. As we got the `fd` structure for the given file descriptor number, we check it and return if it does not exist. We get the current position in the file with the call of the `file_pos_read` function that just returns `f_pos` field of our file:
+`fdget_pos` 함수는 숫자로 주어진 파일 디스크립터를 `fd` 구조체로 바꾸는 역할을 합니다. `fdget_pos` 함수는 여러번의 긴 함수 호출을 통해 현재 프로세스의 파일 디스크립터 테이블 `current->files`를 얻습니다. 그리고 해당 테이블에서 fd 넘버에 일치하는 파일 디스크립터를 찾습니다. 해당 파일 디스크립터 넘버에 대한 `fd` 구조체를 찾으면 변수 f에 해당 구조체를 대입합니다. 만약 찾지 못하면 `-EBADF` 값을 함수에서 반환하고 함수를 종료합니다. 그 다음으로 `file_pos_read` 함수를 호출해서, 파일의 `f_pos` 필드를 반환하여 파일의 현재 위치를 획득합니다.(역주 : 파일의 현재 위치란 파일을 write 하기 시작하는 위치를 말함)
 
 ```C
 static inline loff_t file_pos_read(struct file *file)
@@ -353,14 +353,14 @@ static inline loff_t file_pos_read(struct file *file)
 }
 ```
 
-and calls the `vfs_write` function. The `vfs_write` function defined in the [fs/read_write.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/fs/read_write.c) source code file and does the work for us - writes given buffer to the given file starting from the given position. We will not dive into details about the `vfs_write` function, because this function is weakly related to the `system call` concept but mostly about [Virtual file system](https://en.wikipedia.org/wiki/Virtual_file_system) concept which we will see in another chapter. After the `vfs_write` has finished its work, we check the result and if it was finished successfully we change the position in the file with the `file_pos_write` function:
+그 다음으로 `vfs_write` 함수를 호출합니다. `vfs_write` 함수는 [fs/read_write.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/fs/read_write.c) 소스 파일에 정의되어 있고, 인자로 주어진 버퍼를 주어진 파일의 위치에서부터 파일에 쓰는 역할을 합니다. 여기서는 `vfs_write` 함수의 자세한 내용에 대해 다루지 않을 것입니다. 이 함수는 `system call` 개념보다는 [가상 파일 시스템](https://en.wikipedia.org/wiki/Virtual_file_system) 개념과 깊은 관련이 있고, 그에 따라 다른 챕터에서 이에 대해 배울 것입니다. `vfs_write` 함수를 끝마치면 이 함수의 결과를 확인하고 만약 성공적으로 함수가 종료했으면 `file_pos_write` 함수를 통해 파일의 현재 위치를 실제로 `write` 한만큼 변경합니다.
 
 ```C
 if (ret >= 0)
 	file_pos_write(f.file, pos);
 ```
 
-that just updates `f_pos` with the given position in the given file:
+즉, `f_pos` 을 주어진 파일과 `pos` 변수에 따라 업데이트합니다.
 
 ```C
 static inline void file_pos_write(struct file *file, loff_t pos)
@@ -369,28 +369,30 @@ static inline void file_pos_write(struct file *file, loff_t pos)
 }
 ```
 
-At the end of the our `write` system call handler, we can see the call of the following function:
+`write` 시스템 콜 핸들러의 마지막 부분에서 다음 함수를 호출하는 것을 확인할 수 있습니다.
 
 ```C
 fdput_pos(f);
 ```
 
-unlocks the `f_pos_lock` mutex that protects file position during concurrent writes from threads that share file descriptor.
+이 함수는, 여러 쓰레드에서 파일 디스크립터를 공유할 때 파일의 위치 값을 동시에 작성하지 못하도록 하는 `f_pos_lock` 뮤텍스를 해제하는 역할을 합니다.
 
-That's all.
+좋아요. 이게 끝입니다.
 
-We have seen the partial implementation of one system call provided by the Linux kernel. Of course we have missed some parts in the implementation of the `write` system call, because as I mentioned above, we will see only system calls related stuff in this chapter and will not see other stuff related to other subsystems, such as [Virtual file system](https://en.wikipedia.org/wiki/Virtual_file_system).
+우리는 리눅스 커널에서 제공하는 `write` 시스템 콜의 부분적인 구현을 살펴보았습니다. 물론 저는 `write` 시스템 콜 내부 구현의 일정 부분에 대한 내용은 생략했습니다. 왜냐하면 위에서 서술한 것처럼, 이 챕터에서는 시스템 콜에 관련된 내용에만 집중하고 [가상 파일 시스템](https://en.wikipedia.org/wiki/Virtual_file_system)과 같은 내용은 공부하지 않을 것이기 때문입니다.
 
-Conclusion
+결론
 --------------------------------------------------------------------------------
 
-This concludes the first part covering system call concepts in the Linux kernel. We have covered the theory of system calls so far and in the next part we will continue to dive into this topic, touching Linux kernel code related to system calls.
+이것으로 리눅스 커널의 시스템 콜 개념을 다루는 첫번째 파트를 마칩니다. 지금까지 시스템 콜의 이론적인 부분에 대해 살펴보았고, 다음 파트에서는 시스템 콜에 연관된 리눅스 커널 코드를 보면서 이 주제에 대해 좀 더 깊이 파고들겁니다. 
 
-If you have questions or suggestions, feel free to ping me in twitter [0xAX](https://twitter.com/0xAX), drop me [email](anotherworldofworld@gmail.com) or just create [issue](https://github.com/0xAX/linux-insides/issues/new).
+(원작자) 질문이나 제안할 사항이 있으면 [이슈](https://github.com/0xAX/linux-insides/issues/new)를 남기거나, 트위터 [0xAX](https://twitter.com/0xAX)를 핑하거나, [이메일](anotherworldofworld@gmail.com)을 남기세요.
 
-**Please note that English is not my first language and I am really sorry for any inconvenience. If you found any mistakes please send me PR to [linux-insides](https://github.com/0xAX/linux-insides).**
+**(원작자) 영어가 제 모국어가 아니어서 정말 죄송하게 생각합니다. 내용에서 이상한 부분을 찾으면 [linux-insides](https://github.com/0xAX/linux-insides) 레포지토리에 풀 리퀘스트를 올려주세요.**
 
-Links
+**(번역자) 번역 중 오역이나 제안할 사항이 있으면 언제든 [linux-insides-ko](https://github.com/0xAX/linux-insides) 레포지토리에 풀 리퀘스트나 이슈를 남겨주세요.**
+
+링크
 --------------------------------------------------------------------------------
 
 * [system call](https://en.wikipedia.org/wiki/System_call)
