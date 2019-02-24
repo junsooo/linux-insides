@@ -1,12 +1,12 @@
-Data Structures in the Linux Kernel
+리눅스 커널의 여러 데이터 구조
 ================================================================================
 
-Doubly linked list
+더블 링크드 리스트
 --------------------------------------------------------------------------------
 
-Linux kernel provides its own implementation of doubly linked list, which you can find in the [include/linux/list.h](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/include/linux/list.h). We will start `Data Structures in the Linux kernel` from the doubly linked list data structure. Why? Because it is very popular in the kernel, just try to [search](http://lxr.free-electrons.com/ident?i=list_head)
+리눅스 커널은 자체적으로 더블 링크드 리스트에 대한 구현 코드를 제공합니다. 해당 코드는 [include/linux/list.h](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/include/linux/list.h)에서 찾아볼 수 있습니다. 이제 `리눅스 커널의 데이터 구조들`에 대한 공부를 더블 링크드 리스트 데이터 구조에서 시작해보죠. 이유는 더블 링크드 리스트가 커널상에서 매우 유명하기 때문입니다. 여기서 [검색](http://lxr.free-electrons.com/ident?i=list_head)해보세요.
 
-First of all, let's look on the main structure in the [include/linux/types.h](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/include/linux/types.h):
+첫 번째로, [include/linux/types.h](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/include/linux/types.h)에서 주요 구조에 대해 살펴봅시다.
 
 ```C
 struct list_head {
@@ -14,7 +14,7 @@ struct list_head {
 };
 ```
 
-You can note that it is different from many implementations of doubly linked list which you have seen. For example, this doubly linked list structure from the [glib](http://www.gnu.org/software/libc/) library looks like :
+여태까지 보았던 수많은 더블 링크드 리스트의 구현과는 다르다는 것을 확인할 수 있습니다. 예를 들어, [glib](http://www.gnu.org/software/libc/)의 더블 링크드 리스트 구조는 이렇게 생겼습니다.
 
 ```C
 struct GList {
@@ -24,7 +24,7 @@ struct GList {
 };
 ```
 
-Usually a linked list structure contains a pointer to the item. The implementation of linked list in Linux kernel does not. So the main question is - `where does the list store the data?`. The actual implementation of linked list in the kernel is - `Intrusive list`. An intrusive linked list does not contain data in its nodes - A node just contains pointers to the next and previous node and list nodes part of the data that are added to the list. This makes the data structure generic, so it does not care about entry data type anymore.
+일반적으로 링크드 리스트 구조는 각 항목에 대한 포인터를 포함합니다. 하지만 리눅스 커널의 링크드 리스트 구현은 이를 포함하지 않는군요. 따라서 주요 질문은 다음과 같습니다. `과연 리스트는 어디에 실제로 데이터를 저장할까요?` The actual implementation of linked list in the kernel is - `Intrusive list`. An intrusive linked list does not contain data in its nodes - A node just contains pointers to the next and previous node and list nodes part of the data that are added to the list. This makes the data structure generic, so it does not care about entry data type anymore.
 
 For example:
 
