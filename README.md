@@ -52,7 +52,9 @@ https://groups.google.com/forum/#!forum/kernelhacking
 
 New issues and full requests are always welcome!
 
-현재 번역중인 세션 : [System Call](https://github.com/junsooo/linux-insides-ko/tree/master/SysCall)
+번역 완료된 세션
+--------------
+시스템 콜 - [1](https://github.com/junsooo/linux-insides-ko/blob/master/SysCall/linux-syscall-1.md)
 
 기여하기
 --------------
