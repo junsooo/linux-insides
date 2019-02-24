@@ -1,10 +1,10 @@
-Data Structures in the Linux Kernel
+리눅스 커널의 데이터 구조
 ========================================================================
 
-Linux kernel provides different implementations of data structures like doubly linked list, B+ tree, priority heap and many many more.
+리눅스 커널은 더블 링크드리스트, B+ 트리, 우선 순위 힙과 같이 수많은 데이터 구조에 대한 구현 코드를 제공합니다.
 
-This part considers the following data structures and algorithms:
+이 파트는 다음과 같은 데이터 구조와 알고리즘에 대해 다루고 있습니다.
 
-  * [Doubly linked list](linux-datastructures-1.md)
+  * [더블 링크드 리스트](linux-datastructures-1.md)
   * [Radix tree](linux-datastructures-2.md)
-  * [Bit arrays](linux-datastructures-3.md)
+  * [비트 배열](linux-datastructures-3.md)
