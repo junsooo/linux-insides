@@ -56,6 +56,8 @@ New issues and full requests are always welcome!
 --------------
 시스템 콜 - [1](https://github.com/junsooo/linux-insides-ko/blob/master/SysCall/linux-syscall-1.md)
 
+https://github.com/junsooo/linux-insides-ko 로 레포지토리를 옮겼습니다.
+
 기여하기
 --------------
 
