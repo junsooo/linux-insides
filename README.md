@@ -1,5 +1,7 @@
-linux-insides 한국어 번역
+linux-insides 한국어 번역(중요: [이곳](https://github.com/junsooo/linux-insides-ko)으로 레포지토리를 옮김)
 ===============
+
+https://github.com/junsooo/linux-insides-ko 로 레포지토리를 옮겼습니다.
 
 리눅스 커널과 그 내부 구조에 대해 작성하는 작업을 진행중입니다.
 
@@ -55,8 +57,6 @@ New issues and full requests are always welcome!
 번역 완료된 세션
 --------------
 시스템 콜 - [1](https://github.com/junsooo/linux-insides-ko/blob/master/SysCall/linux-syscall-1.md)
-
-https://github.com/junsooo/linux-insides-ko 로 레포지토리를 옮겼습니다.
 
 기여하기
 --------------
